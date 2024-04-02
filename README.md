@@ -36,7 +36,7 @@ After running filtering algorithm, we can run `run_exp.sh` to realize (1) reshar
 
 ## Checkpoints and UIDs
 
-Will be released soon.
+The checkpoints and uids for DataComp-Small and DataComp-Medium are shared in [this link](https://drive.google.com/drive/folders/1Or2lHSir8-5MRqca3Pi50ZuDwtx6ljPh?usp=sharing).
 
 
 

@@ -20,7 +20,7 @@ python baselines.py --metadata_dir ${dataset_path}/${datasets_scale}/metadata --
 ######### VAS-D(DataComp-Small) #########
 echo "run: {VAS-D(DataComp-Small) ${fraction_vas} fraction} intersect {CLIP score (L/14) ${fraction} fraction}"
 num_iters=500 # number of iterations for VAS-D
-batch_size=1000000 # batch size for calculating target variance in VAS-D
+batch_size=500000 # batch size for calculating target variance in VAS-D
 batch_size_vass=500000 # batch size for calculating VAS score in VAS-D
 
 python baselines.py --metadata_dir ${dataset_path}/${datasets_scale}/metadata --save_path ${files_path}/${datasets_scale}/uids/vas_d_f${fraction}_fvas${fraction_vas}_${num_iters}_final.npy \
