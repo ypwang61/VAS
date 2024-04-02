@@ -6,7 +6,7 @@ import torch
 
 from baselines.apply_filter import apply_filter
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 BASELINES = {
     "no_filter",

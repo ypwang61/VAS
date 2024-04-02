@@ -772,8 +772,6 @@ def apply_filter(args: Any) -> None:
             target_variance_name=args.target_variance_name,
             
             given_uids_path=args.given_uids_path,
-            if_add_more=args.if_add_more,
-            given_uids_index_in_ordered_uids_path=args.given_uids_index_in_ordered_uids_path
         )
     elif args.name == "vas_d":
         print(f"threshold {args.threshold} and fraction {args.fraction}")

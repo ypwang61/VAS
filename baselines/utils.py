@@ -105,7 +105,7 @@ def download(name: str, root: str = None) -> str:
         # vas(imagenet-1k)
         "variance_imagenet_1k":{
             "url": "https://github.com/ypwang61/vas_baseline_assets/releases/download/v0.1.0-alpha/variance_imagenet_1k.pt",
-            
+            "sha256": "0090a2b591249bf9384633bc80b260ccff4f3ed15630269dea416d7df79862a3",
         }
     }
 

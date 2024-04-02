@@ -1,6 +1,6 @@
 ################################# Start of Arguments #################################
 num_gpus=8 # number of gpus
-files_path='/homes/gws/ypwang61/nobackup/files' # Path to the files
+files_path='' # Path to the files, similar to that in run_datacomp_x.sh
 is_overwrite=0 # 0 -> NO overwrite the existing shards, 1-> overwrite the existing shards
 
 ####### DataComp-medium ######

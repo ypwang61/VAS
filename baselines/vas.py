@@ -16,8 +16,7 @@ fasttext.FastText.eprint = lambda x: None
 
 import math
 
-from baselines.vis_utils import ImageCaptionVisualizer
-
+from baselines.utils import download
 
 
 
@@ -524,9 +523,17 @@ def load_uids_with_vas_filter(
     # load target variance
     print("loading target variance")
     
-    target_path = os.path.join(files_path, 'variance', f"variance_{target_variance_name}.pt") # VAS(target proxy), like VAS(imagenet_1k)
-    target_variance = torch.load(target_path)
-    print(f'load target_variance from {target_path}')
+    target_variance_dir = os.path.join(files_path, 'variance')
+    target_variance_path = os.path.join(target_variance_dir, f"variance_{target_variance_name}.pt") # VAS(target proxy), like VAS(imagenet_1k)
+    if not os.path.exists(target_variance_path):
+        if target_variance_name == 'imagenet_1k':
+            # download the target variance
+            download("variance_imagenet_1k", target_variance_dir)
+        else:
+            raise RuntimeError(f"target variance {target_variance_name} does not exist")
+            
+    target_variance = torch.load(target_variance_path)
+    print(f'load target_variance from {target_variance_path}')
     
     
     uids, vass, css = load_all_data(metadata_dir_path, arch, num_gpus, given_uids_path, target_variance=target_variance, is_vas_d=False)
@@ -607,9 +614,11 @@ def load_uids_with_vas_d_filter(
     
     
     # Perform VAS-D filtering
+    total_num = len(uids)
     chunk_size = math.ceil((total_num - target_size) / num_iters)
     
     for i in range(num_iters):
+        
         
         print(f'======================================= iter {i}, total_num = {total_num}, batch_size = {batch_size}, chunk_size = {chunk_size}, target_size = {target_size}, batch_size_vass = {batch_size_vass}')
         
@@ -625,6 +634,9 @@ def load_uids_with_vas_d_filter(
         embs = embs[indices]
         
         target_variance = cal_target_variance(embs, num_gpus, batch_size)
+        
+        total_num = len(uids)
+        
         
     return uids
 
@@ -647,7 +659,9 @@ def cal_vass_iter(
         
     if batch_size_vass is not None:        
         for j in range(0, total_size, batch_size_vass):
-            data_queue.put((j, j+batch_size_vass))
+            end = min(j+batch_size_vass, total_size)
+            data_queue.put((j, end))
+            
     else: # process in one batch
         data_queue.put((0, total_size))
     
