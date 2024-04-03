@@ -30,7 +30,7 @@ Please follow [DataComp](https://github.com/mlfoundations/datacomp/) to install 
 ## Run VAS/VAS-D
 We can run VAS/VAS-D + CLIP score filtering by execuating `run_datacomp_small.sh` for DataComp-Small dataset and  `run_datacomp_medium.sh` for DataComp-Medium dataset. Here in these files, we recommend the path to DataComp-x dataset as `path/to/datasets/datacomp_x/`, and the path to files as `path/to/files/datacomp_x/`. Please first specific the `dataset_path` and  `files_path` in these bash files before executing them. Besides, our codes are also compatible to [DataComp](https://github.com/mlfoundations/datacomp/) and support running their baselines.
 
-## Run experimentsfiles_path
+## Run experiments
 After running filtering algorithm, we can run `run_exp.sh` to realize (1) resharding training dataset, (2) training model, (3) evaluating on 38 downstream tasks. Please first specific the `num_gpus`, `files_path`, `scale`, `datacomp_scale` and `filter_list` in `run_exp.sh` as the examples given inside.
 
 
