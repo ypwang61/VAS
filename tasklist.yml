@@ -20,6 +20,7 @@ cifar10:
   random_score: 0.100000
   tags: []
 
+
 # CIFAR-100
 vtab/cifar100:
   name: CIFAR-100
@@ -372,7 +373,6 @@ fairness/geode:
   tags:
     - fairness
 
-# the following two tasks are not included in the leaderboard, so just skip
 # # FairFace
 # fairness/fairface:
 #   name: FairFace

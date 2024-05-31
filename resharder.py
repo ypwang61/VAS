@@ -527,6 +527,8 @@ def make_argparser():
 
 parser = make_argparser()
 
+# show num-workers
+# print(f"num-workers: {parser.parse_args([]).num_workers}")
 
 def guess_num_shards(
     *,
@@ -590,6 +592,9 @@ def load_shard_metadata(
 
     table = {}
     shard_table_path = input_dir / shard_table
+    
+    print(f'num_workers: {num_workers}')
+    
     if shard_table_path.exists():
         logger.info(f"loading shard table {shard_table_path}")
         with open(shard_table_path, "rb") as f:

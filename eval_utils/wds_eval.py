@@ -94,21 +94,6 @@ def evaluate_webdataset(
         device,
     )
     
-    # if task == 'imagenet1k':# store the classifier
-    #     print(f'classifier.shape = {classifier.shape}')
-    #     save_path = '/homes/gws/ypwang61/nobackup/files/imagenet_1k/save'
-        
-    #     if not os.path.exists(save_path):
-    #         os.makedirs(save_path)
-    #         print(f'make dir {save_path}')
-        
-    #     save_file_path = os.path.join(save_path, f'imagenet_1k_classifier.pt')
-    #     # store classifier if not exists
-    #     if not os.path.exists(save_file_path):
-    #         torch.save(classifier, save_file_path)
-    #         print(f'save classifier to {save_file_path}')
-    #     else:
-    #         print(f'{save_file_path} exists, skip saving classifier')
         
         
     logits, target = zsc.run_classification(

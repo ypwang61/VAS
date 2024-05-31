@@ -1,33 +1,49 @@
-import multiprocessing as mp
+# 
 import os
 import time
 from functools import partial
 from multiprocessing import Pool
 from queue import Empty
-from typing import Any, List, Set, Tuple, Union
+
 
 import fasttext
+fasttext.FastText.eprint = lambda x: None
+
 import fsspec
 import gcld3
 import nltk
-import numpy as np
-import pandas as pd
-import torch
+
 from nltk.corpus import wordnet
 from tqdm import tqdm
 
 from baselines.utils import download, worker_threadpool
 
-fasttext.FastText.eprint = lambda x: None
 
-import ipdb
-import math
+# import time
+import torch
+import numpy as np
+from typing import Any, List, Set, Tuple, Union
+import pandas as pd
+import multiprocessing as mp
 
 import time
 
-from baselines.vas import load_uids_with_vas_filter, load_uids_with_vas_d_filter, text_name_assigned, key_name_assigned
+from baselines.vas import load_uids_with_vas_filter, load_uids_with_vas_filter_v2, load_uids_with_vas_d_filter_v2, text_name, key_name, load_uids_with_vas_filter_curve, load_uids_with_vas_filter_v3
+from baselines.ocr import judge_ocr_data
+from baselines.vas import vis_data_by_given_uids, load_uids_with_vas_filter_variant
+from baselines.vas2 import load_uids_with_cs_new, load_uids_with_vas_d_filter
 
 
+
+# datacomp
+# text_name = "text" #"caption" # "text" # for datacomp
+# key_name = "clip_l14_similarity_score" # "clip_l14_similarity_score" # "oai-clip-vit-l14-score" # for cc12m
+# feature_name = "l14_img"
+
+# cc12m
+# text_name = "caption"
+# key_name = "oai-clip-vit-l14-score"
+# feature_name = "oai-clip-vit-l14-image"
 
     
 
@@ -157,19 +173,23 @@ def image_filter_helper(
         df_index = None
 
         if arch is not None:
-            key = key_name_assigned
+            key = key_name
             if arch == "b32":
                 key = "clip_b32_similarity_score"
                 feature_name = "b32_img"
+            else:
+                feature_name = "l14_img"
             
+            print(f"loading {arch} features")
             df = pd.read_parquet(
-                f"{path_root}.parquet", columns=["uid", text_name_assigned, key], filesystem=fs
+                f"{path_root}.parquet", columns=["uid", text_name, key], filesystem=fs
             )
             df_index = df[key] >= threshold
             df = df[df_index]
         else:
+            feature_name = "l14_img"
             df = pd.read_parquet(
-                f"{path_root}.parquet", columns=["uid", text_name_assigned], filesystem=fs
+                f"{path_root}.parquet", columns=["uid", text_name], filesystem=fs
             )
 
         candidate_embedding = None
@@ -180,7 +200,7 @@ def image_filter_helper(
                 candidate_embedding = candidate_embedding[df_index]
 
         # simple caption filter first
-        df.rename(columns={text_name_assigned: "text"}, inplace=True)
+        df.rename(columns={text_name: "text"}, inplace=True)
         
         mask = caption_filter(df, lang_detect_model)
 
@@ -211,6 +231,86 @@ def image_filter_helper(
 
 
 
+# def vas_filter_helper(
+#     target_variance: torch.Tensor,
+#     device_index: int,
+#     in_queue: mp.Queue,
+#     out_queue: mp.Queue,
+#     arch: Union[str, None] = None,
+#     threshold: Union[float, None] = None,
+#     threshold_vas:  Union[float, None] = -1.0,
+# ) -> None:
+#     """worker function to variance alignment score filtering, pulling off a queue of tasks
+    
+#     Args:
+#         target_variance (torch.Tensor): target variance matrix
+#         batch_size (int): gpu batch size for assigning samples loaded from the in_queue to pool centroids
+#         device_index (int): device on which to run the gpu processing
+#         in_queue (mp.Queue): task queue with fsspec, metadata path pairs
+#         out_queue (mp.Queue): output queue to send filtred uids
+#         arch: (Union[str, None]): If specified, we want to apply a threshold to arch=B/32 or L/14 clip scores. Defaults to None.
+#         threshold: (Union[float, None]): threshold to apply over arch clip scores. Defaults to None.
+#         threshold_vas: (Union[float, None]): threshold to apply over variance alignment scores. Defaults to None.
+    
+#     """
+    
+#     while True:
+#         fs_root = None
+#         try:
+#             fs_root = in_queue.get(timeout=1)
+#         except Empty:
+#             # case where the queue is depleated, worker should return
+#             break
+        
+#         fs, path_root = fs_root
+        
+#         if arch is not None:
+#             key = key_name
+#             if arch == "b32":
+#                 key = "clip_b32_similarity_score"
+            
+#             df = pd.read_parquet(
+#                 f"{path_root}.parquet", columns=["uid", text_name, key], filesystem=fs
+#             )
+#             df_index = df[key] >= threshold
+#             df = df[df_index]
+#         else:
+#             df = pd.read_parquet(
+#                 f"{path_root}.parquet", columns=["uid", text_name], filesystem=fs
+#             )
+
+#         candidate_embedding = None
+#         with fs.open(f"{path_root}.npz") as f:
+#             candidate_embedding = torch.from_numpy(np.load(f)[feature_name])
+
+#             if df_index is not None:
+#                 candidate_embedding = candidate_embedding[df_index]
+
+        
+#         vas = get_vas_gpu(
+#             candidate_embedding,
+#             target_variance,
+#             device_index,
+#         )
+        
+#         mask = vas >= threshold_vas # if threshold_vas is -1.0, we don't apply threshold
+#         mask = mask.numpy()
+        
+#         uids = df[mask]["uid"].values
+#         vass = vas[mask]
+        
+#         out_queue.put(
+#             (
+#                 np.array(
+#                     [(int(uid[:16], 16), int(uid[16:32], 16)) for uid in uids],
+#                     np.dtype("u8,u8"),
+#                 ),
+#                 vass.numpy()
+#             )
+#         )
+        
+
+
 
 
 def load_uids_with_basic_filter_helper(fs_url: Tuple[Any, str]) -> np.ndarray:
@@ -224,7 +324,7 @@ def load_uids_with_basic_filter_helper(fs_url: Tuple[Any, str]) -> np.ndarray:
     """
     fs, url = fs_url
     df = pd.read_parquet(
-        url, columns=["uid", text_name_assigned, "original_width", "original_height"], filesystem=fs
+        url, columns=["uid", text_name, "original_width", "original_height"], filesystem=fs
     )
 
     lang_detect_model = fasttext.load_model(download("fasttext", "~/.cache/fasttext"))
@@ -291,10 +391,10 @@ def load_uids_with_text_entity_helper(
     fs, url = fs_url
     lang_detect_model = fasttext.load_model(download("fasttext", "~/.cache/fasttext"))
 
-    # df = pd.read_parquet(url, columns=["uid", text_name_assigned], filesystem=fs) # for datacomp
-    df = pd.read_parquet(url, columns=["uid", text_name_assigned], filesystem=fs)
+    # df = pd.read_parquet(url, columns=["uid", text_name], filesystem=fs) # for datacomp
+    df = pd.read_parquet(url, columns=["uid", text_name], filesystem=fs)
     # change the column name of caption to "text"
-    df.rename(columns={text_name_assigned: "text"}, inplace=True)
+    df.rename(columns={text_name: "text"}, inplace=True)
     
     fasttext_lang_pred = df.text.apply(
         lambda x: get_fasttext_language(x, lang_detect_model)
@@ -333,7 +433,7 @@ def load_uids_with_clip_score_helper(
     df = None
 
     if gcld3_en_filter:
-        df = pd.read_parquet(url, columns=["uid", text_name_assigned, key], filesystem=fs)
+        df = pd.read_parquet(url, columns=["uid", text_name, key], filesystem=fs)
 
         lang_detect_model = gcld3.NNetLanguageIdentifier(
             min_num_bytes=0, max_num_bytes=1000
@@ -460,7 +560,7 @@ def load_uids_with_clip_score(
     """
 
     # NOTE: assumes errors already checked as in baselines.py
-    key = key_name_assigned
+    key = key_name
     if arch == "b32":
         key = "clip_b32_similarity_score"
 
@@ -523,7 +623,11 @@ def load_uids_with_basic_filter(metadata_dir_path: str, num_workers: int) -> np.
     )
 
 
-def load_uids_with_text_entity(metadata_dir_path: str, num_workers: int) -> np.ndarray:
+def load_uids_with_text_entity(
+        metadata_dir_path: str, 
+        num_workers: int,
+        cache_path: str
+    ) -> np.ndarray:
     """text based filter from the datacomp paper
 
     Args:
@@ -533,10 +637,12 @@ def load_uids_with_text_entity(metadata_dir_path: str, num_workers: int) -> np.n
     Returns:
         np.ndarray: array of uids
     """
-    entity_ids = open(download("imagenet21k_wordnet_ids"), "r").readlines()
+    entity_ids = open(download("imagenet21k_wordnet_ids", cache_path), "r").readlines()
     entity_ids = [x.strip() for x in entity_ids]
     entity_ids = [int(x[1:]) for x in entity_ids]
 
+    print(f'entity_ids = {entity_ids}, entity_ids[0] = {entity_ids[0]}, len(entity_ids) = {len(entity_ids)}')
+    
     fs, url = fsspec.core.url_to_fs(metadata_dir_path)
     parquet_paths = [(fs, str(x)) for x in fs.ls(url) if ".parquet" in x]
 
@@ -549,7 +655,7 @@ def load_uids_with_text_entity(metadata_dir_path: str, num_workers: int) -> np.n
 
 
 def load_uids_with_image_filter(
-    args, # ypwang add
+    args, #
     metadata_dir_path: str,
     image_based_scale: str,
     num_gpus: int,
@@ -592,7 +698,7 @@ def load_uids_with_image_filter(
     print("loading pool centroids")
     
     if args.centroid_path is not None:
-        print('load from args.centroid_path')
+        print('I add here: load from args.centroid_path')
         pool_centroids = torch.from_numpy(
             torch.load(args.centroid_path)
         )
@@ -604,7 +710,7 @@ def load_uids_with_image_filter(
             ))
         )
 
-    print('pool_centroids.shape:', pool_centroids.shape)
+    print('I add here: pool_centroids.shape:', pool_centroids.shape)
     target_centroid_ids = get_centroid_ids_gpu(
         target_embedding, pool_centroids, batch_size, 0
     )
@@ -623,7 +729,7 @@ def load_uids_with_image_filter(
         send_queue.put(job)
 
     if fraction is not None:
-        key = key_name_assigned
+        key = key_name
         if arch == "b32":
             key = "clip_b32_similarity_score"
             
@@ -726,6 +832,7 @@ def apply_filter(args: Any) -> None:
         uids = load_uids_with_text_entity(
             args.metadata_dir,
             args.num_workers,
+            args.cache_path,
         )
     elif args.name == "image_based":
         uids = load_uids_with_image_filter(
@@ -772,12 +879,50 @@ def apply_filter(args: Any) -> None:
             target_variance_name=args.target_variance_name,
             
             given_uids_path=args.given_uids_path,
+            if_add_more=args.if_add_more,
+            given_uids_index_in_ordered_uids_path=args.given_uids_index_in_ordered_uids_path
+        )
+    elif args.name == "vas_v2":
+        uids = load_uids_with_vas_filter_v2(
+            args.metadata_dir,
+            args.files_path,
+            args.num_gpus,
+            arch=args.arch,
+            threshold=args.threshold,
+            fraction=args.fraction,
+            
+            threshold_vas=args.threshold_vas,
+            fraction_vas=args.fraction_vas,
+            target_variance_name=args.target_variance_name,
+            
+            given_uids_path=args.given_uids_path,
+            higher_is_better_vas=args.higher_is_better_vas,
         )
     elif args.name == "vas_d":
         print(f"threshold {args.threshold} and fraction {args.fraction}")
         # Call the updated function with given_uids as an argument
         uids = load_uids_with_vas_d_filter(
             args.metadata_dir,
+            args.files_path,
+            args.num_gpus,
+            arch=args.arch,
+            threshold=args.threshold,
+            fraction=args.fraction,
+            given_uids_path=args.given_uids_path,
+            num_iters=args.num_iters,
+            fraction_vas=args.fraction_vas,
+            
+            batch_size=args.batch_size,
+            batch_size_vass=args.batch_size_vass,
+            update_image_feature_arch = args.update_image_feature_arch,
+            save_path=args.save_path,
+        )
+    elif args.name == "vas_d_v2":
+        print(f"threshold {args.threshold} and fraction {args.fraction}")
+        # Call the updated function with given_uids as an argument
+        uids = load_uids_with_vas_d_filter_v2(
+            args.metadata_dir,
+            args.files_path,
             args.num_gpus,
             arch=args.arch,
             threshold=args.threshold,
@@ -790,6 +935,156 @@ def apply_filter(args: Any) -> None:
             batch_size_vass=args.batch_size_vass,
             
         )
+    elif args.name == "vas_curve":
+        print(f"threshold {args.threshold} and fraction {args.fraction}")
+        uids = load_uids_with_vas_filter_curve(
+            args.metadata_dir,
+            args.files_path,
+            args.num_gpus,
+            arch=args.arch,
+            threshold=args.threshold,
+            threshold_high=args.threshold_high,
+            
+            threshold_vas=args.threshold_vas,
+            
+            fraction=args.fraction,
+            
+            target_variance_name=args.target_variance_name,
+            given_uids_path=args.given_uids_path,
+            higher_is_better_vas=args.higher_is_better_vas,
+            
+            clipscore_exponent=args.clipscore_exponent,
+        )
+    elif args.name == "vas_v3":
+        print(f"threshold {args.threshold} and fraction {args.fraction}")
+        uids = load_uids_with_vas_filter_v3(
+            args.metadata_dir,
+            args.files_path,
+            args.num_gpus,
+            
+            arch=args.arch,
+            threshold=args.threshold,
+            fraction=args.fraction,
+            
+            threshold_vas=args.threshold_vas,
+            fraction_vas=args.fraction_vas,
+            
+            target_variance_name=args.target_variance_name,
+            given_uids_path=args.given_uids_path,
+            higher_is_better_vas=args.higher_is_better_vas,
+            
+            soft_type=args.soft_type,
+
+        )
+    elif args.name == "vis_data":
+        vis_data_by_given_uids(
+            metadata_dir_path=args.metadata_dir,
+            files_path=args.files_path,
+            num_gpus=args.num_gpus,
+            arch=args.arch,
+            target_variance_name=args.target_variance_name,
+            given_uids_path=args.given_uids_path,
+            note = args.note,
+            
+            fraction=args.fraction,
+            threshold=args.threshold,
+            threshold_vas=args.threshold_vas,
+            fraction_vas=args.fraction_vas,
+            
+        )
+    elif args.name == "vas_variant":
+        uids = load_uids_with_vas_filter_variant(
+            metadata_dir_path=args.metadata_dir,
+            cache_path=args.cache_path,
+            num_gpus=args.num_gpus,
+            arch=args.arch,
+            threshold=args.threshold,
+            fraction=args.fraction,
+            threshold_vas=args.threshold_vas,
+            fraction_vas=args.fraction_vas,
+
+            given_uids_path=args.given_uids_path,
+            higher_is_better_vas=args.higher_is_better_vas,
+            
+            norm = args.norm,
+            batch_size=args.batch_size,
+            
+            proxy_name=args.proxy_name,
+            proxy_path=args.proxy_path,
+        )
+    # elif args.name == 'cs_new': ### VAS
+    #     uids = load_uids_with_cs_new(
+    #         metadata_dir_path=args.metadata_dir,
+    #         files_path=args.files_path,
+            
+    #         num_gpus=args.num_gpus,
+    #         arch=args.arch,
+    #         threshold=args.threshold,
+    #         fraction=args.fraction,
+            
+    #         target_variance_name=args.target_variance_name,
+    #         threshold_vas=args.threshold_vas,
+    #         fraction_vas=args.fraction_vas,
+            
+    #         given_uids_path=args.given_uids_path,
+            
+    #         batch_size=args.batch_size,
+            
+    #         score_type=args.score_type,
+    #         temperature=args.temperature, # always 0.01
+            
+    #         average_num=args.average_num,
+            
+    #         proxy_name=args.proxy_name,
+    #         proxy_path=args.proxy_path,
+    #         cache_path=args.cache_path,
+            
+    #         norm = args.norm,
+    #         batch_size_vass=args.batch_size_vass,
+            
+    #         if_use_old_cs=args.if_use_old_cs,
+            
+    #         vas_inf_type=args.vas_inf_type,
+            
+    #         save_path=args.save_path,
+    #     )
+    elif args.name == 'cs_new':
+        uids = load_uids_with_cs_new(
+            metadata_dir_path=args.metadata_dir,
+            files_path=args.files_path,
+            
+            num_gpus=args.num_gpus,
+            arch=args.arch,
+            threshold=args.threshold,
+            fraction=args.fraction,
+            
+            target_variance_name=args.target_variance_name,
+            threshold_vas=args.threshold_vas,
+            fraction_vas=args.fraction_vas,
+            
+            given_uids_path=args.given_uids_path,
+            
+            batch_size=args.batch_size,
+            
+            score_type=args.score_type,
+            temperature=args.temperature, # always 0.01
+            
+            average_num=args.average_num,
+            
+            proxy_name=args.proxy_name,
+            proxy_path=args.proxy_path,
+            cache_path=args.cache_path,
+            
+            norm = args.norm,
+            batch_size_vass=args.batch_size_vass,
+            
+            if_use_old_cs=args.if_use_old_cs,
+            
+            vas_inf_type=args.vas_inf_type,
+            
+            save_path=args.save_path,
+            arch_ncl=args.arch_ncl,
+        )
     elif args.name == "laion2b":
         # special case for laion2b filtering
         uids = load_uids_with_clip_score(
@@ -800,7 +1095,16 @@ def apply_filter(args: Any) -> None:
             args.num_workers,
             gcld3_en_filter=True,
         )
-    
+    elif args.name == 'judge_ocr':
+        uids = judge_ocr_data(
+            args.metadata_dir,
+            args.save_dataset_path,
+            args.num_gpus,
+            arch=args.arch,
+            threshold=args.threshold,
+            fraction=args.fraction,
+            given_uids_path=args.given_uids_path,
+        )
     else:
         raise ValueError(f"Unknown args.name argument: {args.name}")
 
@@ -813,3 +1117,7 @@ def apply_filter(args: Any) -> None:
 
     print(f"saving {args.save_path} with {len(uids)} entries")
     np.save(args.save_path, uids)
+    
+    print(f"saved {args.save_path}")
+
+    print("done")

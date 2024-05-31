@@ -28,7 +28,7 @@ def random_seed(seed: int = 0) -> None:
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
-    # ypwang add
+    # add by me
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -102,11 +102,7 @@ def download(name: str, root: str = None) -> str:
             "url": "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin",
             "sha256": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e",
         },
-        # vas(imagenet-1k)
-        "variance_imagenet_1k":{
-            "url": "https://github.com/ypwang61/vas_baseline_assets/releases/download/v0.1.0-alpha/variance_imagenet_1k.pt",
-            "sha256": "0090a2b591249bf9384633bc80b260ccff4f3ed15630269dea416d7df79862a3",
-        }
+        
     }
 
     if name not in cloud_checkpoints:

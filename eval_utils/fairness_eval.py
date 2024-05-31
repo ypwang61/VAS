@@ -1,3 +1,5 @@
+
+
 from collections import defaultdict
 from contextlib import suppress
 
@@ -6,7 +8,6 @@ from .wilds_eval import *
 
 # Dollar Street
 
-# import ipdb
 
 class TopKAccuracy(Accuracy):
     def __init__(self, prediction_fn=None, name=None):
@@ -257,17 +258,14 @@ def evaluate_fairface_dataset(
 
     # Get templates and classnames: separate for each task
     zeroshot_templates = dataset.templates if hasattr(dataset, "templates") else None
-    print('zeroshot_templates = ')
-    print(zeroshot_templates)
     classnames = dataset.classes if hasattr(dataset, "classes") else None
     assert (
         zeroshot_templates is not None and classnames is not None
     ), "Dataset does not support classification"
     multilabel = defaultdict(lambda: dict(classnames=[], zeroshot_templates=[]))
     
-    # ipdb.set_trace()
     for t in zeroshot_templates:
-        objective, template = t.split(":", 1) # wyp modified
+        objective, template = t.split(":", 1)
         multilabel[objective]["zeroshot_templates"].append(template)
     for c in classnames:
         objective, classname = c.split(":", 1)

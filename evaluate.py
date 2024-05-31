@@ -4,7 +4,7 @@ import json
 import os
 
 ## Just run on some GPUs
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,6,7" #0,1,3,4,5,6,7" #"0,1,2,3" 
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1" #0,1,3,4,5,6,7" #"0,1,2,3" 
 
 
 import pickle
