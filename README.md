@@ -1,3 +1,6 @@
+# Update
+Based on this paper, we develop two new methods ([negCLIPLoss&NormSim](https://arxiv.org/abs/2405.19547)) for data selection in multimodal contrastive learning and has achieved new SOTA in DataComp-medium. And VAS is actually a special case of 2-norm similarity metric in that paper. negCLIPLoss&NormSim has been accepted as **NeurIPS2024 Spotlight**, please refer to its [Github codebase](https://github.com/ypwang61/negCLIPLoss_NormSim) for the update.
+
 # Variance Alignment Score: A Simple But Tough-to-Beat Data Selection Method for Multimodal Contrastive Learning
 [[ Paper ]](https://arxiv.org/abs/2402.02055)
 
